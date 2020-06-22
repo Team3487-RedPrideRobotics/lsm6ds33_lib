@@ -243,9 +243,9 @@ impl GenericSensor for Gyroscope {
 }
 
 impl DirectionalSensor for Gyroscope {
-fn get_x(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
-fn get_y(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
-fn get_z(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
+    fn get_x(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
+    fn get_y(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
+    fn get_z(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
 }
 
 /*------------------*/
