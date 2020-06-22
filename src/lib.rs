@@ -5,6 +5,7 @@ use log::{debug, info};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 
+/// The only two possible addresses on the chip.
 #[derive(Copy, Clone)]
 pub enum Address {
     A = 0x6a,
@@ -20,201 +21,273 @@ impl std::fmt::Display for Address {
     }
 }
 
-pub mod sensor {
+pub type Scale = (u8, f32);
 
-    use std::error::Error;
-
-    pub mod xl {
-        pub type Scale = (u8, f32);
-
-        pub struct Accelerometer {
-            pub active: bool,
-            pub scale: Scale,
-        }
+mod xl {
     
-        pub enum ControlRegister {
-            Reg1 = 0x10,
-        }
-    
-        pub enum DataRegister {
-            XL = 0x28,
-            XH = 0x29,
-            YL = 0x2A,
-            YH = 0x2B,
-            ZL = 0x2C,
-            ZH = 0x2D,
-        }
-    
-        /// These data rates are XL_HM_MODE = 1.
-        /// If that register is 0, then high-performance mode is selected.
-        pub enum DataRate {
-            /// Accelerometer Turned Off
-            Off = 0b0000,
-    
-            /// 12.5 Hz
-            LowPower0 = 0b0001_0000,
-    
-            /// 26 Hz
-            LowPower1 = 0b0010_0000,
-    
-            /// 52 Hz
-            LowPower2 = 0b0011_0000,
-    
-            /// 104 Hz
-            Normal0 = 0b0100_0000,
-    
-            /// 208 Hz
-            Normal1 = 0b0101_0000,
-    
-            /// 416 Hz
-            HiPf0 = 0b0110_0000,
-    
-            /// 833 Hz
-            HiPf1 = 0b0111_0000,
-    
-            /// 1.66 kHz
-            HiPf2 = 0b1000_0000,
-            
-            /// 3.33 kHz
-            HiPf3 = 0b1001_0000,
-    
-            /// 6.66 kHz
-            HiPf4 = 0b1010_0000,
-    
-        }
-    
-        pub mod scale {
-            use super::Scale;
-            // +-2g
-            pub const TWO: Scale = (0b0000_00_00, 0.061);
-            // +- 16g
-            pub const SIXTEEN: Scale = (0b0000_01_00, 0.488);
-            // +- 4g
-            pub const FOUR: Scale = (0b0000_10_00, 0.122);
-            // +- 8g
-            pub const EIGHT: Scale = (0b0000_11_00, 0.244);
-        }
-    
-        pub enum AntiAlias {
-            // 400Hz
-            FourHundred = 0b0000_00_00,
-            // 200Hz
-            TwoHundred = 0b0000_00_01,
-            // 100Hz 
-            OneHundred = 0b0000_00_10,
-            // 50Hz
-            Fifty = 0b0000_00_11,
-        }
-    
+    pub enum ControlRegister {
+        Reg1 = 0x10,
     }
 
-    pub mod gyro {
-        pub type Scale = (u8, f32);
-
-        pub struct Gyroscope {
-            pub active: bool,
-            pub scale: Scale,
-        }
-
-        pub enum ControlRegister {
-            Reg1 = 0x11,
-        }
-
-        pub enum DataRate {
-            /// Gyro Turned Off
-            Off = 0b0000,
-
-            /// 12.5 Hz
-            LowPower0 = 0b0001_0000,
-
-            /// 26 Hz
-            LowPower1 = 0b0010_0000,
-
-            /// 52 Hz
-            LowPower2 = 0b0011_0000,
-
-            /// 104 Hz
-            Normal0 = 0b0100_0000,
-
-            /// 208 Hz
-            Normal1 = 0b0101_0000,
-
-            /// 416 Hz
-            HiPf0 = 0b0110_0000,
-
-            /// 833 Hz
-            HiPf1 = 0b0111_0000,
-
-            /// 1.66 kHz
-            HiPf2 = 0b1000_0000,
-        }
-
-        pub enum DataRegister {
-            XL = 0x22,
-            XH = 0x23,
-            YL = 0x24,
-            YH = 0x25,
-            ZL = 0x26,
-            ZH = 0x27,
-        }
-
-        pub mod scale {
-            use super::Scale;
-            /// 125 dps
-            pub const MIN: Scale = (0b0000_00_1_0, 0.061);
-            /// 250 dps
-            pub const LOW: Scale = (0b0000_00_0_0, 0.061); 
-            /// 500 dps
-            pub const MIDLO: Scale = (0b0000_01_0_0, 0.488);
-            /// 1_000 dps
-            pub const MIDHI: Scale = (0b0000_10_0_0, 0.122);
-            /// 2_000 dps
-            pub const MAX: Scale = (0b0000_11_0_0, 0.244);
-        }
+    pub enum DataRegister {
+        XL = 0x28,
+        XH = 0x29,
+        YL = 0x2A,
+        YH = 0x2B,
+        ZL = 0x2C,
+        ZH = 0x2D,
     }
 
-    impl DirectionalSensor for xl::Accelerometer {
+    /// These data rates are XL_HM_MODE = 1.
+    /// If that register is 0, then high-performance mode is selected.
+    pub enum DataRate {
+        /// Accelerometer Turned Off
+        Off = 0b0000,
 
-        fn get_x(&self, _: &mut rppal::i2c::I2c) { todo!() }
-        fn get_y(&self, _: &mut rppal::i2c::I2c) { todo!() }
-        fn get_z(&self, _: &mut rppal::i2c::I2c) { todo!() }
-    }
+        /// 12.5 Hz
+        LowPower0 = 0b0001_0000,
 
-    impl GenericSensor for xl::Accelerometer {
+        /// 26 Hz
+        LowPower1 = 0b0010_0000,
 
-        fn get_status(&self) -> bool { todo!() }
-        fn get_channel(&self, _: &mut rppal::i2c::I2c) -> u16 { todo!() }
-        fn start(&self, _: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> { todo!() }
-        fn stop(&self, _: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> { todo!() }
-    }
+        /// 52 Hz
+        LowPower2 = 0b0011_0000,
 
-    impl DirectionalSensor for gyro::Gyroscope {
+        /// 104 Hz
+        Normal0 = 0b0100_0000,
 
-        fn get_x(&self, _: &mut rppal::i2c::I2c) { todo!() }
-        fn get_y(&self, _: &mut rppal::i2c::I2c) { todo!() }
-        fn get_z(&self, _: &mut rppal::i2c::I2c) { todo!() }
-    }
+        /// 208 Hz
+        Normal1 = 0b0101_0000,
 
-    impl GenericSensor for gyro::Gyroscope {
+        /// 416 Hz
+        HiPf0 = 0b0110_0000,
+
+        /// 833 Hz
+        HiPf1 = 0b0111_0000,
+
+        /// 1.66 kHz
+        HiPf2 = 0b1000_0000,
         
-        fn get_status(&self) -> bool { todo!() }
-        fn get_channel(&self, _: &mut rppal::i2c::I2c) -> u16 { todo!() }
-        fn start(&self, _: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> { todo!() }
-        fn stop(&self, _: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> { todo!() }
+        /// 3.33 kHz
+        HiPf3 = 0b1001_0000,
+
+        /// 6.66 kHz
+        HiPf4 = 0b1010_0000,
+
     }
 
-    pub trait GenericSensor {
-        fn get_status(&self) -> bool;
-        fn get_channel(&self, bus: &mut rppal::i2c::I2c) -> u16;
-        fn start(&self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
-        fn stop(&self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
+    pub mod scale {
+        use super::super::Scale;
+        // +-2g
+        pub const TWO: Scale = (0b0000_00_00, 0.061);
+        // +- 16g
+        pub const SIXTEEN: Scale = (0b0000_01_00, 0.488);
+        // +- 4g
+        pub const FOUR: Scale = (0b0000_10_00, 0.122);
+        // +- 8g
+        pub const EIGHT: Scale = (0b0000_11_00, 0.244);
     }
 
-    trait DirectionalSensor: GenericSensor {
-        fn get_x(&self, bus: &mut rppal::i2c::I2c);
-        fn get_y(&self, bus: &mut rppal::i2c::I2c);
-        fn get_z(&self, bus: &mut rppal::i2c::I2c);
+    pub enum AntiAlias {
+        // 400Hz
+        FourHundred = 0b0000_00_00,
+        // 200Hz
+        TwoHundred = 0b0000_00_01,
+        // 100Hz 
+        OneHundred = 0b0000_00_10,
+        // 50Hz
+        Fifty = 0b0000_00_11,
     }
+    
+}
+
+mod gyro {
+    pub enum ControlRegister {
+        Reg1 = 0x11,
+    }
+
+    pub enum DataRate {
+        /// Gyro Turned Off
+        Off = 0b0000,
+
+        /// 12.5 Hz
+        LowPower0 = 0b0001_0000,
+
+        /// 26 Hz
+        LowPower1 = 0b0010_0000,
+
+        /// 52 Hz
+        LowPower2 = 0b0011_0000,
+
+        /// 104 Hz
+        Normal0 = 0b0100_0000,
+
+        /// 208 Hz
+        Normal1 = 0b0101_0000,
+
+        /// 416 Hz
+        HiPf0 = 0b0110_0000,
+
+        /// 833 Hz
+        HiPf1 = 0b0111_0000,
+
+        /// 1.66 kHz
+        HiPf2 = 0b1000_0000,
+    }
+
+    pub enum DataRegister {
+        XL = 0x22,
+        XH = 0x23,
+        YL = 0x24,
+        YH = 0x25,
+        ZL = 0x26,
+        ZH = 0x27,
+    }
+
+    pub mod scale {
+        use super::super::Scale;
+        /// 125 dps
+        pub const MIN: Scale = (0b0000_00_1_0, 0.061);
+        /// 250 dps
+        pub const LOW: Scale = (0b0000_00_0_0, 0.061); 
+        /// 500 dps
+        pub const MIDLO: Scale = (0b0000_01_0_0, 0.488);
+        /// 1_000 dps
+        pub const MIDHI: Scale = (0b0000_10_0_0, 0.122);
+        /// 2_000 dps
+        pub const MAX: Scale = (0b0000_11_0_0, 0.244);
+    }
+}
+
+fn start_sensor(register: u8, rate: u8, scale: u8, filter: u8, bus: &mut I2c) -> rppal::i2c::Result<usize> {
+
+    let starter = vec![register, rate | scale | filter];
+    debug!(target: "LSM6DS33", "Writing to register: {:#b}", starter.get(1).unwrap());
+    bus.write(&starter)
+
+}
+
+fn stop_sensor(register: u8, bus: &mut I2c) -> rppal::i2c::Result<usize> {
+    let starter = vec![register, 0b0000_00_00];
+    debug!(target: "LSM6DS33", "Writing to register: {:#b}", starter.get(1).unwrap());
+    bus.write(&starter)
+}
+
+pub struct Accelerometer {
+    pub active: bool,
+}     
+
+pub struct Gyroscope {
+    pub active: bool,
+}
+
+impl Accelerometer {
+    fn new() -> Accelerometer {
+        Accelerometer {
+            active: false,
+        }
+    }
+}
+
+impl Gyroscope {
+    fn new() -> Gyroscope {
+        Gyroscope {
+            active: false,
+        }
+    }
+}
+
+impl DirectionalSensor for Accelerometer {
+
+    fn get_x(&self, _: &mut rppal::i2c::Ipub2c) {
+        todo!()
+    }
+    fn get_y(&self, _: &mut rppal::i2c::I2c) { todo!() }
+    fn get_z(&self, _: &mut rppal::i2c::I2c) { todo!() }
+}
+
+impl GenericSensor for Accelerometer {
+
+    /// Gets the activity status of the Accelerometer
+    fn get_status(&self) -> bool { 
+        self.active
+    }
+
+    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>> { 
+        info!(target: "LSM6DS33", "Starting Accelerometer");
+
+        start_sensor(xl::ControlRegister::Reg1 as u8, rate, scale, filter, bus)?;
+
+        info!(target: "LSM6DS33", "Accelerometer Started");
+
+        Ok(())
+    }
+    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>> { 
+        info!(target: "LSM6DS33", "Stopping Accelerometer");
+
+        stop_sensor(gyro::ControlRegister::Reg1 as u8, bus)?;
+
+        info!(target: "LSM6DS33", "Accelerometer Stopped");
+
+        Ok(())
+    }
+}
+
+impl DirectionalSensor for Gyroscope {
+
+    fn get_x(&self, _: &mut rppal::i2c::I2c) { todo!() }
+    fn get_y(&self, _: &mut rppal::i2c::I2c) { todo!() }
+    fn get_z(&self, _: &mut rppal::i2c::I2c) { todo!() }
+}
+
+impl GenericSensor for Gyroscope {
+    
+    /// Gets the activity status of the Gyroscope
+    fn get_status(&self) -> bool { 
+        self.active
+    }
+
+    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>> { 
+        info!(target: "LSM6DS33", "Starting Gyroscope");
+
+        start_sensor(gyro::ControlRegister::Reg1 as u8, rate, scale, filter, bus)?;
+
+        info!(target: "LSM6DS33", "Gyroscope Started");
+
+        Ok(())
+    }
+    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>> {
+        info!(target: "LSM6DS33", "Stopping Gyroscope");
+
+        stop_sensor(gyro::ControlRegister::Reg1 as u8, bus)?;
+
+        info!(target: "LSM6DS33", "Gyroscope Stopped");
+
+        Ok(())
+    }
+}
+
+pub trait GenericSensor {
+    fn get_status(&self) -> bool;
+    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
+    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
+}
+
+pub trait DirectionalSensor:GenericSensor {
+    fn get_x( bus: &mut rppal::i2c::I2c) -> f32;
+    fn get_y( bus: &mut rppal::i2c::I2c) -> f32;
+    fn get_z( bus: &mut rppal::i2c::I2c) -> f32;
+}
+
+struct DirectionalSensorImpl {}
+impl DirectionalSensor for DirectionalSensorImpl {
+    fn get_x( bus: &mut rppal::i2c::I2c) -> f32 {todo!()}
+    fn get_y( bus: &mut rppal::i2c::I2c) -> f32 {todo!()}
+    fn get_z( bus: &mut rppal::i2c::I2c) -> f32 {todo!()}
+}
+
+impl GenericSensor for DirectionalSensor {
+
 }
 
 #[cfg(test)]
