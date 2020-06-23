@@ -2,7 +2,7 @@ use std::error::Error;
 use log::{debug, info};
 use byteorder::{BigEndian, ByteOrder};
 
-/// The only two possible addresses for the sensor suite
+/// The only two possible addresses for the sensor suite..
 #[derive(Copy, Clone)]
 pub enum ChipAddress {
     A = 0x6a,
@@ -20,10 +20,10 @@ impl std::fmt::Display for ChipAddress {
 /// A scale for unit per least significant bit.
 pub type Scale = (u8, f32);
 
-/// An address to a register
+/// An address to a register.
 pub type Address = u8;
 
-/// Data registers for the accelerometer
+/// Data registers for the accelerometer.
 pub mod xl {
     /// The control registers for the accelerometer.
     pub mod control_register {
@@ -79,7 +79,7 @@ pub mod xl {
         HiPf4 = 0b1010_0000,
 
     }
-    /// The scales for converting bits to gs
+    /// The scales for converting bits to milli-gs.
     pub mod scale {
         use super::super::Scale;
         // +-2g
@@ -108,15 +108,17 @@ pub mod xl {
 
 /// Data on all the registers for the gyroscope.
 pub mod gyro {
-    /// The only control register being implemented. (For now).
+    /// The only control register being implemented (for now).
     pub mod control_register {
         /// The primary data register. Controls data rate and scale
         /// **Note**: This does not contain an anti-alias filter, like the accelerometer.
         pub const REG1: crate::Address = 0x11;
     }
 
+    /// These data rates are XL_HM_MODE = 1.
+    /// If that register is 0, then high-performance mode is selected.
     pub enum DataRate {
-        /// Gyro Turned Off
+        /// Gyro turned off.
         Off = 0b0000,
 
         /// 12.5 Hz
@@ -143,7 +145,7 @@ pub mod gyro {
         /// 1.66 kHz
         HiPf2 = 0b1000_0000,
     }
-
+    /// The data registers for the axes.
     pub mod data_register {
         pub const XL: crate::Address = 0x22;
         pub const XH: crate::Address = 0x23;
@@ -152,7 +154,7 @@ pub mod gyro {
         pub const ZL: crate::Address = 0x26;
         pub const ZH: crate::Address = 0x27;
     }
-
+    /// The scales for converting bits to milli-degrees.
     pub mod scale {
         use super::super::Scale;
         /// 125 dps
@@ -197,7 +199,7 @@ pub struct Sensor {
 }
 
 impl Sensor {
-    /// Constructs a new sensor of type SensorType
+    /// Constructs a new sensor of type SensorType.
     pub fn new(kind: SensorType) -> Sensor {
         let register = match kind {
             SensorType::Accelerometer => Some(xl::control_register::REG1),    
@@ -222,7 +224,7 @@ impl Sensor {
         self.sensor = kind;
     }
 
-    /// Get the x axis of the sensor
+    /// Get the x axis of the sensor.
     pub fn get_x(&mut self, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>> {
         info!(target: "LSM6DS33", "Getting {} X", self.sensor);
 
@@ -238,7 +240,7 @@ impl Sensor {
 
     }
 
-    /// Get the y axis of the sensor
+    /// Get the y axis of the sensor.
     pub fn get_y(&mut self, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>>  {
         info!(target: "LSM6DS33", "Getting {} Y", self.sensor);
 
@@ -253,7 +255,7 @@ impl Sensor {
         }
     }
 
-    /// Get the z axis of the sensor
+    /// Get the z axis of the sensor.
     pub fn get_z(&mut self, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>>  {
         info!(target: "LSM6DS33", "Getting {} Z", self.sensor);
 
@@ -284,12 +286,12 @@ impl Sensor {
 
 impl GenericSensorTrait for Sensor {
 
-    /// Get the status of the sensor
+    /// Get the status of the sensor.
     fn get_status(&self) -> bool {
         self.active
      }
 
-    /// Start refreshing the sensors data buffer
+    /// Start refreshing the sensors data buffer.
     fn start(&mut self, rate: u8, scale: Scale, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
         info!(target: "LSM6DS33", "Starting {}", self.sensor);
 
@@ -304,11 +306,11 @@ impl GenericSensorTrait for Sensor {
         Ok(())
     }
 
-    ///Stop the sensor from collecting data
+    ///Stop the sensor from collecting data.
     fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
         info!(target: "LSM6DS33", "Stopping {}", self.sensor);
         if let Some(control_register) = self.control_register {
-            // Read the current mode
+            // Read the current mode.
             let mut mode =  vec![0];
             bus.write_read(&vec![control_register], &mut mode)?;
             debug!(target: "LSM6DS33", "Pre-Stop Current Mode: {:b}", mode.get(0).unwrap());
@@ -328,7 +330,7 @@ impl GenericSensorTrait for Sensor {
         Ok(())
     }
 
-    /// Get a single register from the sensor
+    /// Get a single register from the sensor.
     fn get_register(&mut self, addr: crate::Address, bus: &mut rppal::i2c::I2c) -> Result<Option<u8>, Box<(dyn std::error::Error + 'static)>> { 
         if self.active == false {
             return Ok(None);
