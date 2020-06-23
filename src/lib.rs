@@ -1,38 +1,45 @@
 use std::error::Error;
 use log::{debug, info};
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use byteorder::{BigEndian, ByteOrder};
 
-/// The only two possible addresses on the chip.
+/// The only two possible addresses for the sensor suite
 #[derive(Copy, Clone)]
-pub enum Address {
+pub enum ChipAddress {
     A = 0x6a,
     B = 0x6b,
 }
 
-impl std::fmt::Display for Address {
+impl std::fmt::Display for ChipAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Address::A => write!(f, "0x6A"),
-            Address::B => write!(f, "0x6B")
+            ChipAddress::A => write!(f, "0x6A"),
+            ChipAddress::B => write!(f, "0x6B")
         }
     }
 }
-
+/// A scale for unit per least significant bit.
 pub type Scale = (u8, f32);
 
-pub mod xl {
-    
-    pub enum ControlRegister {
-        Reg1 = 0x10,
-    }
+/// An address to a register
+pub type Address = u8;
 
-    pub enum DataRegister {
-        XL = 0x28,
-        XH = 0x29,
-        YL = 0x2A,
-        YH = 0x2B,
-        ZL = 0x2C,
-        ZH = 0x2D,
+/// Data registers for the accelerometer
+pub mod xl {
+    /// The control registers for the accelerometer.
+    pub mod control_register {
+        /// The primary control register for controlling the accelerometer. 
+        /// This controls the data rate, scale, and anti-alias filter. 
+        /// **Note**: This contains an anti-alias filter, unlike the gyroscope.
+        pub const REG1: crate::Address = 0x10;
+    }
+    /// The data registers for the axes.
+    pub mod data_register {
+        pub const XL: crate::Address = 0x28;
+        pub const XH: crate::Address = 0x29;
+        pub const YL: crate::Address = 0x2A;
+        pub const YH: crate::Address = 0x2B;
+        pub const ZL: crate::Address = 0x2C;
+        pub const ZH: crate::Address = 0x2D;
     }
 
     /// These data rates are XL_HM_MODE = 1.
@@ -72,7 +79,7 @@ pub mod xl {
         HiPf4 = 0b1010_0000,
 
     }
-
+    /// The scales for converting bits to gs
     pub mod scale {
         use super::super::Scale;
         // +-2g
@@ -85,6 +92,7 @@ pub mod xl {
         pub const EIGHT: Scale = (0b0000_11_00, 0.244);
     }
 
+    /// Anti-Aliasing filter modss
     pub enum AntiAlias {
         // 400Hz
         FourHundred = 0b0000_00_00,
@@ -98,9 +106,13 @@ pub mod xl {
     
 }
 
+/// Data on all the registers for the gyroscope.
 pub mod gyro {
-    pub enum ControlRegister {
-        Reg1 = 0x11,
+    /// The only control register being implemented. (For now).
+    pub mod control_register {
+        /// The primary data register. Controls data rate and scale
+        /// **Note**: This does not contain an anti-alias filter, like the accelerometer.
+        pub const REG1: crate::Address = 0x11;
     }
 
     pub enum DataRate {
@@ -132,13 +144,13 @@ pub mod gyro {
         HiPf2 = 0b1000_0000,
     }
 
-    pub enum DataRegister {
-        XL = 0x22,
-        XH = 0x23,
-        YL = 0x24,
-        YH = 0x25,
-        ZL = 0x26,
-        ZH = 0x27,
+    pub mod data_register {
+        pub const XL: crate::Address = 0x22;
+        pub const XH: crate::Address = 0x23;
+        pub const YL: crate::Address = 0x24;
+        pub const YH: crate::Address = 0x25;
+        pub const ZL: crate::Address = 0x26;
+        pub const ZH: crate::Address = 0x27;
     }
 
     pub mod scale {
@@ -156,163 +168,190 @@ pub mod gyro {
     }
 }
 
-/*----------------*/
-/* Accelerometer */
-/*--------------*/
-pub struct Accelerometer {
-    sensor: DirectionalSensorImpl,
+//The suite of sensors available to the chip.
+pub enum SensorType {
+    Accelerometer,
+    Gyroscope,
+    Thermometer,
 }
-
-impl Accelerometer {
-    fn new() -> Accelerometer {
-        Accelerometer {
-            sensor: DirectionalSensorImpl {
-                active: false,
-                control_register: xl::ControlRegister::Reg1 as u8,
-            }
+impl std::fmt::Display for SensorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SensorType::Accelerometer => write!(f, "Accelerometer"),
+            SensorType::Gyroscope => write!(f, "Gyroscope"),
+            SensorType::Thermometer => write!(f, "Thermometer")
         }
     }
-}
-
-impl GenericSensor for Accelerometer {
-    fn get_status(&self) -> bool {
-        self.sensor.get_status()
-    }
-    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> {
-        info!(target:"LSM6DS33", "Starting Accelerometer");
-        let result = self.sensor.start(rate, scale, filter, bus);
-        if let Ok(()) = result {
-            info!(target: "LSM6DS33", "Accelerometer Started");
-        }
-        result
-    }
-    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> {
-        self.sensor.stop(bus)
-    }
-}
-
-impl DirectionalSensor for Accelerometer {
-    fn get_x(&self, bus: &mut rppal::i2c::I2c) -> f32 {
-        todo!()
-    }
-    fn get_y(&self, bus: &mut rppal::i2c::I2c) -> f32 {
-        todo!()
-    }
-    fn get_z(&self, bus: &mut rppal::i2c::I2c) -> f32 {
-        todo!()
-    }
-}
-/*------------*/
-/* Gyroscope */
-/*----------*/
-pub struct Gyroscope {
-    sensor: DirectionalSensorImpl,
-}
-
-impl Gyroscope {
-    fn new() -> Gyroscope {
-        Gyroscope {
-            sensor: DirectionalSensorImpl {
-                active: false,
-                control_register: gyro::ControlRegister::Reg1 as u8,
-            }
-        }
-    }
-}
-
-impl GenericSensor for Gyroscope {
-    fn get_status(&self) -> bool {
-        self.sensor.get_status()
-     }
-    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> {
-        info!(target:"LSM6DS33", "Starting Gyroscope");
-        let result = self.sensor.start(rate, scale, filter, bus);
-        if let Ok(()) = result {
-            info!(target: "LSM6DS33", "Gyroscope Started");
-        }
-        result
-    }
-    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> { 
-        info!(target:"LSM6DS33", "Stopping Gyroscope");
-        let result = self.sensor.stop(bus);
-        if let Ok(()) = result {
-            info!(target: "LSM6DS33", "Gyroscope Stopped");
-        }
-        result
-    }
-}
-
-impl DirectionalSensor for Gyroscope {
-    fn get_x(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
-    fn get_y(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
-    fn get_z(&self, _: &mut rppal::i2c::I2c) -> f32 { todo!() }
 }
 
 /*------------------*/
 /*DirectionalSensor*/
 /*----------------*/
 
-struct DirectionalSensorImpl {
+/// A representation of one of the three types of sensors.
+pub struct Sensor {
     active: bool,
-    control_register: u8,
+    control_register: Option<u8>,
+    sensor: SensorType,
+    scale: Option<Scale>
 }
 
-impl DirectionalSensor for DirectionalSensorImpl {
-    fn get_x(&self, bus: &mut rppal::i2c::I2c) -> f32 {todo!()}
-    fn get_y(&self, bus: &mut rppal::i2c::I2c) -> f32 {todo!()}
-    fn get_z(&self, bus: &mut rppal::i2c::I2c) -> f32 {todo!()}
+impl Sensor {
+    /// Constructs a new sensor of type SensorType
+    pub fn new(kind: SensorType) -> Sensor {
+        let register = match kind {
+            SensorType::Accelerometer => Some(xl::control_register::REG1),    
+            SensorType::Gyroscope => Some(gyro::control_register::REG1),
+            SensorType::Thermometer => None,
+        };
+        Sensor {
+            active: false,
+            control_register: register,
+            scale: None,
+            sensor: kind
+        }
+    }
+    
+    /// Change the sensor type (also changes the register).
+    pub fn set_sensor(&mut self, kind: SensorType) {
+        match kind {
+            SensorType::Accelerometer => self.control_register = Some(xl::control_register::REG1 as u8),
+            SensorType::Gyroscope => self.control_register = Some(gyro::control_register::REG1 as u8), 
+            _ => self.control_register = None
+        }
+        self.sensor = kind;
+    }
+
+    /// Get the x axis of the sensor
+    pub fn get_x(&mut self, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>> {
+        info!(target: "LSM6DS33", "Getting {} X", self.sensor);
+
+        match &self.sensor {
+            SensorType::Accelerometer => {
+                self.get_axis(xl::data_register::XH, xl::data_register::XL, bus)
+            },
+            SensorType::Gyroscope => {
+                self.get_axis(gyro::data_register::XH, gyro::data_register::XL, bus)
+            },
+            _ => panic!("Not  Implemented")
+        }
+
+    }
+
+    /// Get the y axis of the sensor
+    pub fn get_y(&mut self, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>>  {
+        info!(target: "LSM6DS33", "Getting {} Y", self.sensor);
+
+        match &self.sensor {
+            SensorType::Accelerometer => {
+                self.get_axis(xl::data_register::YH, xl::data_register::YL, bus)
+            },
+            SensorType::Gyroscope => {
+                self.get_axis(gyro::data_register::YH, gyro::data_register::YL, bus)
+            },
+            _ => panic!("Not  Implemented")
+        }
+    }
+
+    /// Get the z axis of the sensor
+    pub fn get_z(&mut self, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>>  {
+        info!(target: "LSM6DS33", "Getting {} Z", self.sensor);
+
+        match &self.sensor {
+            SensorType::Accelerometer => {
+                self.get_axis(xl::data_register::ZH, xl::data_register::ZL, bus)
+            },
+            SensorType::Gyroscope => {
+                self.get_axis(gyro::data_register::ZH, gyro::data_register::ZL, bus)
+            },
+            _ => panic!("Not  Implemented")
+        }
+    }
+
+    fn get_axis(&mut self, reg_high: u8, reg_low: u8, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>> {
+        if self.active == false {
+            return Ok(None);
+        }
+
+        let a_high = self.get_register(reg_high, bus)?.unwrap();
+        let a_low = self.get_register(reg_low, bus)?.unwrap();
+
+        let raw_data = BigEndian::read_i16(&vec![a_high, a_low]);
+
+        return Ok(Some((raw_data as f32 * self.scale.unwrap().1) / 1000.0))
+    }
 }
 
-impl GenericSensor for DirectionalSensorImpl {
+impl GenericSensorTrait for Sensor {
 
-    fn get_status(&self) -> bool { 
+    /// Get the status of the sensor
+    fn get_status(&self) -> bool {
         self.active
      }
 
-    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> {
+    /// Start refreshing the sensors data buffer
+    fn start(&mut self, rate: u8, scale: Scale, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
+        info!(target: "LSM6DS33", "Starting {}", self.sensor);
 
-        let starter = vec![self.control_register, rate | scale | filter];
-        debug!(target: "LSM6DS33", "Writing to register: {:#b}", starter.get(1).unwrap());
-
-        bus.write(&starter)?;
+        if let Some(control_reg) = self.control_register {
+            let starter = vec![control_reg, rate | scale.0 | filter];
+            debug!(target: "LSM6DS33", "Writing to register: {:#b}", starter.get(1).unwrap());
+            bus.write(&starter)?;
+            self.scale = Some(scale);
+        }
         self.active = true;
+        info!(target: "LSM6DS33", "{} Started", self.sensor);
         Ok(())
     }
-    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> std::result::Result<(), std::boxed::Box<(dyn std::error::Error + 'static)>> {
-        /// Read the current mode
-        let mut mode =  vec![0];
-        bus.write_read(&vec![self.control_register], &mut mode)?;
-        debug!(target: "LSM6DS33", "Pre-Stop Current Mode: {:b}", mode.get(0).unwrap());
+
+    ///Stop the sensor from collecting data
+    fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<(dyn std::error::Error + 'static)>> {
+        info!(target: "LSM6DS33", "Stopping {}", self.sensor);
+        if let Some(control_register) = self.control_register {
+            // Read the current mode
+            let mut mode =  vec![0];
+            bus.write_read(&vec![control_register], &mut mode)?;
+            debug!(target: "LSM6DS33", "Pre-Stop Current Mode: {:b}", mode.get(0).unwrap());
+
+            // Set the ODR to 0
+            let mode = mode.get(0).unwrap() & 0b0000_1111;
+            debug!(target: "LSM6DS33", "Stop Mode: {:b}", mode);
         
-        /// Set the ODR to 0
-        let mode = mode.get(0).unwrap() & 0b0000_1111;
-        debug!(target: "LSM6DS33", "Stop Mode: {:b}", mode);
-    
-        /// Send the new ODR
-        let stopper = vec![self.control_register, mode];
-        bus.write(&stopper);
+            // Send the new ODR
+            let stopper = vec![control_register, mode];
+            bus.write(&stopper)?;
+        }
 
         self.active = false;
+        self.scale = None;
+        info!(target: "LSM6DS33", "{} Stopped", self.sensor);
         Ok(())
     }
-}
 
+    /// Get a single register from the sensor
+    fn get_register(&mut self, addr: crate::Address, bus: &mut rppal::i2c::I2c) -> Result<Option<u8>, Box<(dyn std::error::Error + 'static)>> { 
+        if self.active == false {
+            return Ok(None);
+        }
+
+        let mut buf = vec![0];
+        bus.write_read(&vec![addr], &mut buf)?;
+        Ok(Some(*buf.get(0).unwrap()))
+     }
+}
 
 /*-----------*/
 /* Generics */
 /*---------*/
 
-pub trait GenericSensor {
+/// In case anyone decides to extend this package.
+pub trait GenericSensorTrait {
     fn get_status(&self) -> bool;
-    fn start(&mut self, rate: u8, scale: u8, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
+    fn start(&mut self, rate: u8, scale: Scale, filter: u8, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
     fn stop(&mut self, bus: &mut rppal::i2c::I2c) -> Result<(), Box<dyn Error>>;
+    fn get_register(&mut self, register: crate::Address, bus: &mut rppal::i2c::I2c) -> Result<Option<u8>, Box<dyn Error>>;
 }
 
-pub trait DirectionalSensor:GenericSensor {
-    fn get_x(&self, bus: &mut rppal::i2c::I2c) -> f32;
-    fn get_y(&self, bus: &mut rppal::i2c::I2c) -> f32;
-    fn get_z(&self, bus: &mut rppal::i2c::I2c) -> f32;
-}
 
 #[cfg(test)]
 mod tests {
