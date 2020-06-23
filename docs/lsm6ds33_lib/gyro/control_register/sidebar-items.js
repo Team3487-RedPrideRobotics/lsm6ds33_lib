@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["REG1","The primary data register. Controls data rate and scale Note: This does not contain an anti-alias filter, like the accelerometer."]]});

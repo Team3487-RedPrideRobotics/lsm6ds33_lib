@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["REG1","The primary control register for controlling the accelerometer.  This controls the data rate, scale, and anti-alias filter.  Note: This contains an anti-alias filter, unlike the gyroscope."]]});

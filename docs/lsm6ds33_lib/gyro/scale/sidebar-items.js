@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["LOW","250 dps"],["MAX","2_000 dps"],["MIDHI","1_000 dps"],["MIDLO","500 dps"],["MIN","125 dps"]]});
