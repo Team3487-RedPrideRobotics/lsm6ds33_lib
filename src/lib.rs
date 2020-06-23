@@ -36,12 +36,9 @@ pub mod xl {
     }
     /// The data registers for the axes.
     pub mod data_register {
-        pub const XL: crate::Address = 0x28;
-        pub const XH: crate::Address = 0x29;
-        pub const YL: crate::Address = 0x2A;
-        pub const YH: crate::Address = 0x2B;
-        pub const ZL: crate::Address = 0x2C;
-        pub const ZH: crate::Address = 0x2D;
+        pub const X: crate::Address = 0x28;
+        pub const Y: crate::Address = 0x2A;
+        pub const Z: crate::Address = 0x2C;
     }
 
     /// These data rates are XL_HM_MODE = 1.
@@ -149,12 +146,9 @@ pub mod gyro {
     }
     /// The data registers for the axes.
     pub mod data_register {
-        pub const XL: crate::Address = 0x22;
-        pub const XH: crate::Address = 0x23;
-        pub const YL: crate::Address = 0x24;
-        pub const YH: crate::Address = 0x25;
-        pub const ZL: crate::Address = 0x26;
-        pub const ZH: crate::Address = 0x27;
+        pub const X: crate::Address = 0x22;
+        pub const Y: crate::Address = 0x24;
+        pub const Z: crate::Address = 0x26;
     }
     /// The scales for converting bits to milli-degrees/sec.
     pub mod scale {
@@ -170,6 +164,14 @@ pub mod gyro {
         /// 2_000 dps
         pub const MAX: Scale = (0b0000_11_0_0, 70.0);
     }
+}
+
+pub mod thermo {
+    pub mod data_register {
+        pub const T: crate::Address = 0x20;
+    }
+
+    pub const SCALE:crate::Scale = (0,0.0625);
 }
 
 /// The suite of sensors available to the chip.
@@ -232,12 +234,12 @@ impl Sensor {
 
         match &self.sensor {
             SensorType::Accelerometer => {
-                self.get_axis(xl::data_register::XH, xl::data_register::XL, bus)
+                self.get_axis( xl::data_register::X, bus)
             },
             SensorType::Gyroscope => {
-                self.get_axis(gyro::data_register::XH, gyro::data_register::XL, bus)
+                self.get_axis(gyro::data_register::X, bus)
             },
-            _ => panic!("Not  Implemented")
+            _ => Ok(None)
         }
 
     }
@@ -248,12 +250,12 @@ impl Sensor {
 
         match &self.sensor {
             SensorType::Accelerometer => {
-                self.get_axis(xl::data_register::YH, xl::data_register::YL, bus)
+                self.get_axis( xl::data_register::Y, bus)
             },
             SensorType::Gyroscope => {
-                self.get_axis(gyro::data_register::YH, gyro::data_register::YL, bus)
+                self.get_axis(gyro::data_register::Y, bus)
             },
-            _ => panic!("Not  Implemented")
+            _ => Ok(None)
         }
     }
 
@@ -263,26 +265,33 @@ impl Sensor {
 
         match &self.sensor {
             SensorType::Accelerometer => {
-                self.get_axis(xl::data_register::ZH, xl::data_register::ZL, bus)
+                self.get_axis(xl::data_register::Z, bus)
             },
             SensorType::Gyroscope => {
-                self.get_axis(gyro::data_register::ZH, gyro::data_register::ZL, bus)
+                self.get_axis(gyro::data_register::Z, bus)
             },
-            _ => panic!("Not  Implemented")
+            _ => Ok(None)
         }
     }
 
-    fn get_axis(&mut self, reg_high: u8, reg_low: u8, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>> {
+    /// Gets twos complement axis register
+    pub fn get_axis(&mut self, reg: u8, bus: &mut rppal::i2c::I2c) -> Result<Option<f32>, Box<dyn Error>> {
         if self.active == false {
             return Ok(None);
         }
 
-        let a_high = self.get_register(reg_high, bus)?.unwrap();
-        let a_low = self.get_register(reg_low, bus)?.unwrap();
+        let a_high = self.get_register(reg+1, bus)?.unwrap();
+        let a_low = self.get_register(reg, bus)?.unwrap();
 
         let raw_data = BigEndian::read_i16(&vec![a_high, a_low]);
 
-        return Ok(Some((raw_data as f32 * self.scale.unwrap().1) / 1000.0))
+        let scale = match self.scale {
+            //For Thermo
+            None => (0 as u8,0.0 as f32) as Scale,
+            Some(k) => k,
+        };
+
+        return Ok(Some((raw_data as f32 * scale.1) / 1000.0))
     }
 }
 
