@@ -156,19 +156,19 @@ pub mod gyro {
         pub const ZL: crate::Address = 0x26;
         pub const ZH: crate::Address = 0x27;
     }
-    /// The scales for converting bits to milli-degrees.
+    /// The scales for converting bits to milli-degrees/sec.
     pub mod scale {
         use super::super::Scale;
         /// 125 dps
-        pub const MIN: Scale = (0b0000_00_1_0, 0.061);
+        pub const MIN: Scale = (0b0000_00_1_0, 4.375);
         /// 250 dps
-        pub const LOW: Scale = (0b0000_00_0_0, 0.061); 
+        pub const LOW: Scale = (0b0000_00_0_0, 8.75); 
         /// 500 dps
-        pub const MIDLO: Scale = (0b0000_01_0_0, 0.488);
+        pub const MIDLO: Scale = (0b0000_01_0_0, 17.5);
         /// 1_000 dps
-        pub const MIDHI: Scale = (0b0000_10_0_0, 0.122);
+        pub const MIDHI: Scale = (0b0000_10_0_0, 35.0);
         /// 2_000 dps
-        pub const MAX: Scale = (0b0000_11_0_0, 0.244);
+        pub const MAX: Scale = (0b0000_11_0_0, 70.0);
     }
 }
 
