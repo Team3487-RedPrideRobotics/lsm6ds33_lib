@@ -2,10 +2,12 @@ use std::error::Error;
 use log::{debug, info};
 use byteorder::{BigEndian, ByteOrder};
 
-/// The only two possible addresses for the sensor suite..
+/// The only two possible addresses for the sensor suite.
 #[derive(Copy, Clone)]
 pub enum ChipAddress {
+    /// Address = 0x6A
     A = 0x6a,
+    /// Address = 0x6B
     B = 0x6b,
 }
 
@@ -170,7 +172,7 @@ pub mod gyro {
     }
 }
 
-//The suite of sensors available to the chip.
+/// The suite of sensors available to the chip.
 pub enum SensorType {
     Accelerometer,
     Gyroscope,
