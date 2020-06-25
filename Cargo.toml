@@ -3,7 +3,7 @@ name = "lsm6ds33_lib"
 version = "0.1.0"
 authors = ["Lainkai <tefman7422@gmail.com>"]
 edition = "2018"
-license= "GNU-3.0"
+license= "BSD-3-Clause"
 description = "A set of drivers for the 6-dof device for Raspberry Pi over i2c."
 #keywords = ""
 
